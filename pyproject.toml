@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "device auth service"
+version = "0.1.0"
+description = ""
+authors = ["htv-hoangpn <hoangpn@hybrid-technologies.co.jp>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+Django = "^4.1"
+djangorestframework = "^3.13.1"
+django-rest-swagger = "^2.2.0"
+djangorestframework-simplejwt = "^5.2.0"
+python-dotenv = "^0.20.0"
+drf-spectacular = "^0.23.1"
+django-cors-headers = "^3.13.0"
+mysqlclient = "^2.1.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
