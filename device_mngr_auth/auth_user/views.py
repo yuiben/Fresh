@@ -15,3 +15,9 @@ def auth_login_view(request):
     auth_serializer.is_valid()
     token = auth_serializer.authenticate()
     return Response(token, 200)
+
+
+@extend_schema(request=None, responses={200: {}}, methods=['POST'],)
+@api_view(["POST"])
+def auth_verify_token_view(request):
+    return Response(request.user, 200)
