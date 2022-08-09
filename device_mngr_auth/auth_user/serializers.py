@@ -1,11 +1,14 @@
-from device_mngr_auth.common.exceptions import EmailException
+from device_mngr_auth.common.exceptions import EmailException, UserNotFoundException
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.exceptions import AuthenticationFailed
-from .constants import DMAUserRoleType
+from rest_framework.exceptions import AuthenticationFailed, NotFound
+from .constants import DMAUserRoleType, DefaultPasswordUser
 
 from .models import DMAUser, Position, UserProfile
+from datetime import date
+from device_mngr_auth.borrow.models import Borrow
+from django.db import transaction
 
 
 class AuthLoginSerializer(serializers.Serializer):
@@ -26,34 +29,104 @@ class PositionSerializer(serializers.ModelSerializer):
         model = Position
         fields = ['id', 'name']
         
-class UserProfileSerializer(serializers.ModelSerializer):
-    position = serializers.SlugRelatedField(queryset=Position.objects.all(),slug_field='name')
+class UserProfileCreateSerializer(serializers.ModelSerializer):
+    position = serializers.PrimaryKeyRelatedField(
+        queryset=Position.objects.all())
+
     class Meta:
         model = UserProfile
         fields = ['id','first_name','last_name','phone_number','date_of_birth','position']
-        
-        
+
+class UserProfileViewSerializer(UserProfileCreateSerializer):
+    position = serializers.SlugRelatedField(
+        queryset=Position.objects.all(), slug_field='name')
+
+    class Meta:
+        model = UserProfileCreateSerializer.Meta.model
+        fields = UserProfileCreateSerializer.Meta.fields  
+
 class UserSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=[DMAUserRoleType.USER.value, DMAUserRoleType.ADMIN.value], default=DMAUserRoleType.USER.value)
-    profile = UserProfileSerializer()
+    profile = UserProfileViewSerializer()
+
     class Meta:
         model = DMAUser
-        fields = ['id', 'name', 'email', 'role', 'code', 'profile', 'created_at', 'updated_at', 'deleted_at']
-        read_only_fields = ['deleted_at','code']
+        fields = [
+            'id', 'name', 'email', 'role', 'code', 'profile', 'created_at', 'updated_at', 'deleted_at'
+        ]
         
-    def validate(self, validated_data):
+class UserCreateSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(
+        choices=[DMAUserRoleType.USER.value, DMAUserRoleType.ADMIN.value],
+        default=DMAUserRoleType.USER.value)
+    profile = UserProfileCreateSerializer()
 
+    class Meta:
+        model = DMAUser
+        fields = [
+            'id', 'name', 'email', 'role', 'code', 'profile', 'created_at', 'updated_at', 'deleted_at'
+        ]
+        read_only_fields = ['deleted_at', 'code']
+        
+        
+    def create(self, validated_data):
         if DMAUser.objects.filter(email=validated_data['email']).first():
             raise EmailException()
-        password = {'password': 'DAD-'+ validated_data['profile']['last_name']}
+        password = {'password': DefaultPasswordUser.PASSWORD}
         validated_data.update(password)
         profile_data = validated_data.pop('profile')
         user = DMAUser.objects.create(**validated_data)
         UserProfile.objects.create(user=user, **profile_data)
         user.code = str(profile_data['position']) + str(user.id)
         user.save()
-        return user
 
+        return user
+    
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile')
+        profile = instance.profile
+
+        instance.name = validated_data.get('name', instance.name)
+        instance.email = validated_data.get('email', instance.email)
+        instance.role = validated_data.get('role', instance.role)
+        instance.save()
+
+        profile.first_name = profile_data.get('first_name', profile.first_name)
+        profile.last_name = profile_data.get('first_name', profile.last_name)
+        profile.phone_number = profile_data.get(
+            'phone_number', profile.phone_number)
+        profile.date_of_birth = profile_data.get(
+            'date_of_birth', profile.date_of_birth)
+        profile.position = profile_data.get('position', profile.position)
+        profile.save()
+
+        return instance
+
+class SoftDeleteUserSerializer(serializers.Serializer):
+    id = serializers.ListField(
+        child=serializers.IntegerField())
+
+    @transaction.atomic
+    def create(self, validated_data):
+
+        with transaction.atomic():
+            for value in validated_data['id']:
+                user_borrow = Borrow.objects.filter(
+                    user_id=value, deleted_at=None)
+                if len(user_borrow) != 0:
+                    raise UserNotFoundException(
+                        {'code': 400, 'message': f'Can\'t continue because user borrow id {value} is borrowing the product'})
+                try:
+                    user = DMAUser.objects.get(pk=value, deleted_at=None)
+                    user.deleted_at = date.today()
+                    user.save()
+
+                    profile = UserProfile.objects.get(user=value, deleted_at=None)
+                    profile.deleted_at = date.today()
+                    profile.save()
+                except DMAUser.DoesNotExist:
+                    raise UserNotFoundException(
+                        {'code': 400, 'message': f'Can\'t continue because user id {value} can\'t be found'})
+        return user
 
 class LoginSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(max_length=255, min_length=3)

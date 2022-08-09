@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'device_mngr_auth.auth_user',
     'device_mngr_auth.common',
+    'device_mngr_auth.borrow',
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,7 @@ DATABASES = {
         "ATOMIC_REQUESTS": True,
     }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators

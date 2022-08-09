@@ -28,6 +28,8 @@ from device_mngr_auth.auth_user.serializers import (
     UserProfileSerializer,
     LoginSerializer,
     UserSerializer,
+    SoftDeleteUserSerializer,
+    UserCreateSerializer
     )
 
 
@@ -48,43 +50,97 @@ def auth_verify_token_view(request):
     return Response(request.user, 200)
 
 
-#@extend_schema(request=, responses=None, methods=['POST'])
+@extend_schema(request=SoftDeleteUserSerializer, responses=None, methods=['POST'])
 @api_view(["POST"])
-@permission_classes([permissions.AllowAny,])
+@permission_classes([permissions.IsAuthenticated, IsAdminUser, ])
 def soft_delete_user(request):
-    uid = request.data['id']
-    user = DMAUser.objects.get(pk=uid)
-    return Response(user)
+    serializer = SoftDeleteUserSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response({'code': 200, 'message': 'Soft delete success'})
 
 
-class ListCreateUserAPIView(generics.ListCreateAPIView):
-
-    #permission_classes = (permissions.IsAuthenticated, IsAdminUser,)
-    permission_classes = (permissions.AllowAny,)
+class ListCreateUserAPIView(APIView):
+    permission_classes = (permissions.IsAuthenticated, IsAdminUser, )
     serializer_class = UserSerializer
     pagination_class = CustomPagination
     
-    def get(self, request):
-        user = DMAUser.objects.filter(deleted_at=None)
-        serializer = self.serializer_class(user, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    """
+    Paginator
+    """
+    @property
+    def paginator(self):
+        if not hasattr(self, '_paginator'):
+            if self.pagination_class is None:
+                self._paginator = None
+            else:
+                self._paginator = self.pagination_class()
+        return self._paginator
 
+    def paginate_queryset(self, queryset):
+        if self.paginator is None:
+            return None
+        return self.paginator.paginate_queryset(queryset, self.request, view=self)
+
+    def get_paginated_response(self, data):
+        assert self.paginator is not None
+        return self.paginator.get_paginated_response(data)
+    
+    
+    """
+    Get list user and filter param with name, position, deleted_at
+    """
+    def get(self, request):
+        user = DMAUser.objects.all()
+
+        for key, value in self.request.query_params.items():
+            if key == 'name':
+                user = user.filter(name__icontains=value)
+                break
+
+            if key == 'deleted_at':
+                if value == "1" or value == "0":
+                    user = user.filter(deleted_at__isnull=bool(int(value)))
+                    continue
+                return Response({'code': 400, 'message': 'Deleted_at param Error'})
+
+            if key == 'position':
+                try:
+                    profile = UserProfile.objects.filter(position=value)
+                    user = user.filter(id__in=profile)
+                    continue
+                except ValueError:
+                    return Response({'code': 400, 'message': 'Position param Error'})
+
+        page = self.paginate_queryset(user)
+
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        return Response(serializer.data)
+    
+
+    @extend_schema(request=UserCreateSerializer, responses=None, methods=['POST'])
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response({'code': 201, 'message': 'succes', 'data': serializer.data}, status=status.HTTP_201_CREATED)
-    
-    
-class ListDetailUserAPIView(APIView):
-    permission_classes = (permissions.AllowAny,)
+        serializer.save()
+        return Response(
+            {'code': 201, 'message': 'succes', 'data': serializer.data},
+            status=status.HTTP_201_CREATED)
+
+
+class UserDetailAPIView(APIView):
+    permission_classes = (permissions.IsAuthenticated, IsAdminUser,)
     serializer_class = UserSerializer
-    
+
     def get_object(self, pk):
         try:
-            return DMAUser.objects.get(pk=pk,deleted_at=None)
+            return DMAUser.objects.get(pk=pk)
         except DMAUser.DoesNotExist:
             raise UserNotFoundException()
-        
+
     def get(self, request, pk):
         user = self.get_object(pk)
         serializer = UserSerializer(user)
@@ -95,9 +151,16 @@ class ListDetailUserAPIView(APIView):
         serializer = UserSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(
+                {'code': 204, 'message': 'Update User Succes',
+                    'data': serializer.data},
+                status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def delete(self, request, pk):
+        user = self.get_object(pk)
+        user.delete()
+        return Response({'code': 204, 'message': 'Delete User Succes'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class LoginAPIView(generics.GenericAPIView):
