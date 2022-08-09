@@ -1,23 +1,29 @@
-from datetime import datetime
-
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import models
+from device_mngr_auth.common.models import BaseModel
 
 from device_mngr_auth.auth_user.constants import DMAUserRoleType
 
 
 class DMAUserManager(BaseUserManager):
-    def create(self, username, password, role=DMAUserRoleType.USER, **extra_fields):
-        now = datetime.now()
-        user = self.model(username=username, role=role.value, **extra_fields)
+    def create(self, email, name, password, role=DMAUserRoleType.USER, **extra_fields):
+        user = self.model(email=email, name=name, role=role, **extra_fields)
         user.set_password(password)
-        user.user_code = f"{int(now.timestamp())}"
         user.save()
         return user
 
 
-class DMAUser(AbstractBaseUser):
+class Position(BaseModel):
+    name = models.CharField(max_length=255, unique=True)
+    class Meta:
+        db_table = "positions"
+        
+    def __str__(self):
+        return self.name
+    
+
+class DMAUser(BaseModel, AbstractBaseUser):
     user_id = None
     first_name = None
     last_name = None
@@ -25,19 +31,32 @@ class DMAUser(AbstractBaseUser):
     last_login = None
     is_staff = None
     is_superuser = None
-    user_group = None
-    user_permission = None
-    groups = None
-    user_permissions = None
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
-    id = models.AutoField(primary_key=True)
-    email = models.EmailField(max_length=500, unique=True)
+    name = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255, unique=True)
     password = models.CharField(max_length=255)
     role = models.IntegerField(default=DMAUserRoleType.USER.value)
-    user_code = models.CharField(max_length=10)
-
+    code = models.CharField(max_length=255, default=None, null=True)
+    
     objects = DMAUserManager()
 
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
     class Meta:
-        db_table = "auth_user"
+        db_table = "users"
+        
+
+class UserProfile(BaseModel):
+    firstName = models.CharField(max_length=100)
+    lastName = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=20)
+    date_of_birth = models.DateField()
+    image = models.TextField(default=None, null=True)
+    position = models.ForeignKey(Position, on_delete=models.CASCADE, related_name='positions')
+    user = models.OneToOneField(DMAUser, on_delete=models.CASCADE, related_name='profile')
+
+    class Meta:
+        '''
+        to set table name in database
+        '''
+        db_table = "profile"

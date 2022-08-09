@@ -28,5 +28,5 @@ urlpatterns = [
     # Optional UI:
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    path('api/', include("device_mngr_auth.routers")),
+    path('api/v1/', include("device_mngr_auth.routers")),
 ]
