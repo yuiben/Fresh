@@ -13,11 +13,15 @@ from device_mngr_auth.auth_user.views import (
     AuthAdminAPIView,
     ListCreateUserAPIView,
     ListDetailUserAPIView,
+    SendPasswordResetEmailView,
+    UserChangePasswordView,
+    UserPasswordResetView,
+    UserProfileDetail
     )
 
 auth_urls = [
-    path("auth/login", view=auth_login_view, name="auth-login"),
-    path("auth/verify", view=auth_verify_token_view, name="auth-verify"),
+    # path("auth/login", view=auth_login_view, name="auth-login"),
+    # path("auth/verify", view=auth_verify_token_view, name="auth-verify"),
     
     
     #List user
@@ -39,5 +43,10 @@ auth_urls = [
     #refresh token
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-   
+    #User Profile
+    path("auth/profile",UserProfileDetail.as_view(), name="auth-profile"),
+    path("auth/change-password", UserChangePasswordView.as_view(), name="auth-change-password"),
+    path('auth/send-forgot-password-email',SendPasswordResetEmailView.as_view(),name='send-email'),
+    path('auth/reset-password/<uid>/<token>',UserPasswordResetView.as_view(),name='reset-password'),
+
 ]
