@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     'drf_spectacular',
-    'device_mngr_auth.auth_user'
+    'device_mngr_auth.auth_user',
 ]
 
 MIDDLEWARE = [
@@ -70,8 +70,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["device_mngr_auth.common.auth.JWTAuth"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
-    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    # "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
@@ -98,21 +98,28 @@ WSGI_APPLICATION = 'device_mngr_auth.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "HOST": os.getenv("DB_HOST"),
+#         "PORT": os.getenv("DB_PORT"),
+#         "NAME": os.getenv("DB_NAME"),
+#         "USER": os.getenv("DB_USER"),
+#         "PASSWORD": os.getenv("DB_PASSWORD"),
+#         "ENGINE": f"django.db.backends.mysql",
+#         "OPTIONS": {
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', "
+#                             "default_storage_engine=INNODB",
+#             "charset": "utf8",
+#             "isolation_level": "read committed",
+#         },
+#         "ATOMIC_REQUESTS": True,
+#     }
+# }
+
 DATABASES = {
-    "default": {
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "ENGINE": f"django.db.backends.mysql",
-        "OPTIONS": {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', "
-                            "default_storage_engine=INNODB",
-            "charset": "utf8",
-            "isolation_level": "read committed",
-        },
-        "ATOMIC_REQUESTS": True,
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -158,11 +165,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_HEADER_TYPES = ("Bearer",)
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=int(os.getenv("ACCESS_TOKEN_LIFETIME"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME"))),
     # example ACCESS_TOKEN_LIFETIME=1
     "REFRESH_TOKEN_LIFETIME": timedelta(hours=int(os.getenv("REFRESH_TOKEN_LIFETIME"))),
     # example REFRESH_TOKEN_LIFETIME=24
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": False,
     "ALGORITHM": "HS256",
@@ -227,3 +234,13 @@ SPECTACULAR_SETTINGS = {
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     'SERVE_AUTHENTICATION': None,
 }
+
+APPEND_SLASH=False
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'dangquancskh@gmail.com'
+EMAIL_HOST_PASSWORD = 'zaakektlndtiafnl'
