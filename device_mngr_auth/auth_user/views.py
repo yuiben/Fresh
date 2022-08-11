@@ -1,3 +1,4 @@
+from xml.dom import ValidationErr
 from drf_spectacular.utils import extend_schema
 
 from rest_framework import generics, status, permissions
@@ -6,18 +7,28 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from device_mngr_auth.common.validate import check_form_password_user
-from device_mngr_auth.auth_user.models import DMAUser
+from device_mngr_auth.auth_user.models import DMAUser, UserProfile
 from device_mngr_auth.common.paginators import CustomPagination
 from device_mngr_auth.common.exceptions import UserNotFoundException
 from .permissions import IsAdminUser
 
+from django.utils.encoding import smart_str, force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from device_mngr_auth.common.sendmail import send_email_to_user
 
+from rest_framework.generics import RetrieveAPIView, UpdateAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from device_mngr_auth.auth_user.serializers import (
-    AuthLoginSerializer,
+    AuthLoginSerializer, 
+    SendPasswordResetEmailSerializer, 
+    UserChangePasswordSerializer, 
+    UserResetPasswordSerializer, 
+    UserProfileSerializer,
     LoginSerializer,
     UserSerializer,
-)
+    )
 
 
 @extend_schema(request=AuthLoginSerializer, responses={200: {}}, methods=['POST'],)
@@ -48,9 +59,9 @@ def soft_delete_user(request):
 
 class ListCreateUserAPIView(generics.ListCreateAPIView):
 
-    permission_classes = (permissions.IsAuthenticated, IsAdminUser,)
+    #permission_classes = (permissions.IsAuthenticated, IsAdminUser,)
+    permission_classes = (permissions.AllowAny,)
     serializer_class = UserSerializer
-    # queryset = DMAUser.objects.all()
     pagination_class = CustomPagination
     
     def get(self, request):
@@ -119,3 +130,121 @@ class AuthAdminAPIView(generics.GenericAPIView):
             return Response({'code': 200, 'message': 'succes', 'data': serializer.data}, status=status.HTTP_200_OK)
         else:
             return Response({'code': 401, 'message': 'You do not have permission to use this action !'})
+
+class UserProfileDetail(RetrieveAPIView):
+    """
+    Read profile user
+    """
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserProfileSerializer
+
+    def get_object(self, request):
+        profile = UserProfile.objects.get(user=request.user)
+        if profile is None:
+            return Response({'status': status.HTTP_404_NOT_FOUND, 'message': 'User profile not found'})
+        else:
+            return profile
+
+    def get(self, request):
+        user_profile = self.get_object(request)
+        serializer = self.serializer_class(user_profile)
+        response = {
+            'status': status.HTTP_200_OK,
+            'message': 'success',
+            'data': {
+                'user_id': request.user.id,
+                'name': request.user.name,
+                'email': request.user.email,
+                'code': request.user.code,
+                'profile': serializer.data
+            },
+        }
+        return Response(response)
+
+    def put(self, request):
+        user_profile = self.get_object(request)
+        serializer = UserProfileSerializer(user_profile, data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response({'status': status.HTTP_200_OK, 'message': 'uppdate user success', 'data': serializer.data})
+        return Response({'status': status.HTTP_400_BAD_REQUEST, 'message': serializer.errors})
+
+class UserChangePasswordView(generics.GenericAPIView):
+
+    """
+    Change password
+    """
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserChangePasswordSerializer
+    model = DMAUser
+
+    def post(self, request):
+        self.object = self.request.user
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not self.object.check_password(serializer.data.get("old_password")):
+            response = {
+                "status": status.HTTP_400_BAD_REQUEST,
+                "message": "Wrong password",
+            }
+            return Response(response)
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+        self.object.set_password(confirm_password)
+        self.object.save()
+        response = {
+            'status': status.HTTP_200_OK,
+            'message': 'Change password successfully',
+            'data': {
+                'user_id': self.request.user.id
+            }
+        }
+
+        return Response(response)
+
+
+class SendPasswordResetEmailView(APIView):
+    """
+    Forgot password
+    """
+    permission_classes = (AllowAny,)
+    serializer_class = SendPasswordResetEmailSerializer
+
+    def post(self, request, format=None):
+        serializer = SendPasswordResetEmailSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user = DMAUser.objects.get(email=request.data.get('email'))
+            uid = urlsafe_base64_encode(force_bytes(user.id))
+            token = PasswordResetTokenGenerator().make_token(user)
+            url_reset_password = 'http://localhost:3000/api/v1/auth/reset-password?uid=' + \
+                uid+'&token='+token
+            # send mail
+            send_email_to_user(to_email=user.email, user_data=dict(
+                user=user, code=token, url_reset_password=f'{url_reset_password}'))
+            response = {
+                'status': status.HTTP_200_OK,
+                'message': 'Email sent. Please check your email',
+            }
+            return Response(response)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserPasswordResetView(APIView):
+    permission_classes = (AllowAny,)
+    serializer_class = UserResetPasswordSerializer
+
+    def post(self, request, uid, token, format=None):
+        serializer = UserResetPasswordSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            id = smart_str(urlsafe_base64_decode(uid))
+            user = DMAUser.objects.get(id=id)
+            if not PasswordResetTokenGenerator().check_token(user, token):
+                raise ValidationErr('Token is not Valid or Expired')
+            new_password = request.data.get("new_password")
+            user.set_password(new_password)
+            user.save()
+            response = {
+                'status': status.HTTP_200_OK,
+                'message': 'Password reset successfully',
+            }
+            return Response(response)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

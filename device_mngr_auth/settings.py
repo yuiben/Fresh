@@ -12,11 +12,11 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 import os
 from datetime import timedelta
 from pathlib import Path
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
+
 
 ENV_FILE = os.getenv("USE_ENV_FILE", ".env")
 
@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     'drf_spectacular',
     'device_mngr_auth.auth_user',
+    'device_mngr_auth.common',
 ]
 
 MIDDLEWARE = [
@@ -70,8 +71,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["device_mngr_auth.common.auth.JWTAuth"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
-    # "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    # "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
@@ -80,7 +81,7 @@ ROOT_URLCONF = 'device_mngr_auth.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [ os.path.join(BASE_DIR, 'templates'),  ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -98,28 +99,21 @@ WSGI_APPLICATION = 'device_mngr_auth.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "HOST": os.getenv("DB_HOST"),
-#         "PORT": os.getenv("DB_PORT"),
-#         "NAME": os.getenv("DB_NAME"),
-#         "USER": os.getenv("DB_USER"),
-#         "PASSWORD": os.getenv("DB_PASSWORD"),
-#         "ENGINE": f"django.db.backends.mysql",
-#         "OPTIONS": {
-#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', "
-#                             "default_storage_engine=INNODB",
-#             "charset": "utf8",
-#             "isolation_level": "read committed",
-#         },
-#         "ATOMIC_REQUESTS": True,
-#     }
-# }
-
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT"),
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "ENGINE": f"django.db.backends.mysql",
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', "
+                            "default_storage_engine=INNODB",
+            "charset": "utf8",
+            "isolation_level": "read committed",
+        },
+        "ATOMIC_REQUESTS": True,
     }
 }
 
@@ -237,10 +231,11 @@ SPECTACULAR_SETTINGS = {
 
 APPEND_SLASH=False
 
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_USE_TLS = True
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'dangquancskh@gmail.com'
-EMAIL_HOST_PASSWORD = 'zaakektlndtiafnl'
+EMAIL_HOST_USER = os.environ.get('EMAIL_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASS')
+EMAIL_USE_TLS = bool(os.environ.get('EMAIL_USE_TLS', True))
+EMAIL_PORT = int(os.environ.get('EMAIL_USE_TLS', 587))
+
+PASSWORD_RESET_TIMEOUT=900
