@@ -5,7 +5,6 @@ from device_mngr_auth.common.models import BaseModel
 
 from device_mngr_auth.auth_user.constants import DMAUserRoleType
 
-
 class DMAUserManager(BaseUserManager):
     def create(self, email, name, password, role=DMAUserRoleType.USER, **extra_fields):
         user = self.model(email=email, name=name, role=role, **extra_fields)
@@ -47,8 +46,8 @@ class DMAUser(BaseModel, AbstractBaseUser):
         
 
 class UserProfile(BaseModel):
-    firstName = models.CharField(max_length=100)
-    lastName = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20)
     date_of_birth = models.DateField()
     image = models.TextField(default=None, null=True)
@@ -60,3 +59,5 @@ class UserProfile(BaseModel):
         to set table name in database
         '''
         db_table = "profile"
+
+
