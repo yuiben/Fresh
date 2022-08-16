@@ -6,8 +6,8 @@ from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from device_mngr_auth.common.validate import check_form_password_user
 from device_mngr_auth.auth_user.models import DMAUser, UserProfile
+from device_mngr_auth.borrow.models import Borrow
 from device_mngr_auth.common.paginators import CustomPagination
 from device_mngr_auth.common.exceptions import UserNotFoundException
 from .permissions import IsAdminUser
@@ -56,41 +56,16 @@ def auth_verify_token_view(request):
 def soft_delete_user(request):
     serializer = SoftDeleteUserSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    serializer.delete(serializer.data)
     return Response({'code': 200, 'message': 'Soft delete success'})
 
 
 class ListCreateUserAPIView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsAdminUser, )
     serializer_class = UserSerializer
-    pagination_class = CustomPagination
-    
-    """
-    Paginator
-    """
-    @property
-    def paginator(self):
-        if not hasattr(self, '_paginator'):
-            if self.pagination_class is None:
-                self._paginator = None
-            else:
-                self._paginator = self.pagination_class()
-        return self._paginator
 
-    def paginate_queryset(self, queryset):
-        if self.paginator is None:
-            return None
-        return self.paginator.paginate_queryset(queryset, self.request, view=self)
-
-    def get_paginated_response(self, data):
-        assert self.paginator is not None
-        return self.paginator.get_paginated_response(data)
-    
-    
-    """
-    Get list user and filter param with name, position, deleted_at
-    """
     def get(self, request):
+        paginator = CustomPagination()
         user = DMAUser.objects.all()
 
         for key, value in self.request.query_params.items():
@@ -112,15 +87,12 @@ class ListCreateUserAPIView(APIView):
                 except ValueError:
                     return Response({'code': 400, 'message': 'Position param Error'})
 
-        page = self.paginate_queryset(user)
+        result_page = paginator.paginate_queryset(user, request)
 
-        if page is not None:
-            serializer = self.serializer_class(page, many=True)
-            return self.get_paginated_response(serializer.data)
+        pserializer=self.serializer_class(result_page, many=True)
 
-        return Response(serializer.data)
+        return paginator.get_paginated_response(pserializer.data)
     
-
     @extend_schema(request=UserCreateSerializer, responses=None, methods=['POST'])
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
@@ -146,21 +118,23 @@ class UserDetailAPIView(APIView):
         serializer = UserSerializer(user)
         return Response(serializer.data)
     
+    
     def put(self, request, pk):
         user = self.get_object(pk)
-        serializer = UserSerializer(user, data=request.data)
+        serializer = UserCreateSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(
-                {'code': 204, 'message': 'Update User Succes',
-                    'data': serializer.data},
-                status=status.HTTP_204_NO_CONTENT)
+            return Response({'code': 204, 'message': 'Update User Succes'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        user_borrow = Borrow.objects.filter(user_id=pk, deleted_at=None)
+        if len(user_borrow) != 0:
+            raise UserNotFoundException(
+                {'code': 400, 'message': f'Can\'t continue because user borrow id {pk} is borrowing the product'})
         user = self.get_object(pk)
         user.delete()
-        return Response({'code': 204, 'message': 'Delete User Succes'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'code': 204, 'message': 'Delete User Succes'})
 
 
 class LoginAPIView(generics.GenericAPIView):
