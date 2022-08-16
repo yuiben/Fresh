@@ -26,4 +26,4 @@ RUN pip install poetry && \
     poetry install --no-dev
 
 
-CMD ["sh", "-c", "gunicorn device_mngr_auth.wsgi:application -b :8000 --timeout 3600 --threads 4"]
+CMD python manage.py runserver 0.0.0.0:8000
