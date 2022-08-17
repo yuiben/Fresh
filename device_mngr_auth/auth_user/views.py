@@ -1,3 +1,4 @@
+from datetime import datetime,date
 from xml.dom import ValidationErr
 from drf_spectacular.utils import extend_schema
 
@@ -5,11 +6,13 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import authentication_classes, permission_classes, api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser,FileUploadParser
 
+from device_mngr_auth.common.validate import validate_date_of_birth, validate_password, validate_phone_number
 from device_mngr_auth.auth_user.models import DMAUser, UserProfile
 from device_mngr_auth.borrow.models import Borrow
 from device_mngr_auth.common.paginators import CustomPagination
-from device_mngr_auth.common.exceptions import UserNotFoundException
+from device_mngr_auth.common.exceptions import  InvalidPasswordException, UserNotFoundException
 from .permissions import IsAdminUser
 
 from django.utils.encoding import smart_str, force_bytes
@@ -17,12 +20,12 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from device_mngr_auth.common.sendmail import send_email_to_user
 
-from rest_framework.generics import RetrieveAPIView, UpdateAPIView
+from rest_framework.generics import RetrieveAPIView,UpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from device_mngr_auth.auth_user.serializers import (
     AuthLoginSerializer, 
-    SendPasswordResetEmailSerializer, 
+    SendPasswordResetEmailSerializer,
     UserChangePasswordSerializer, 
     UserResetPasswordSerializer, 
     UserProfileSerializer,
@@ -160,7 +163,6 @@ class AuthAdminAPIView(generics.GenericAPIView):
     serializer_class = UserSerializer
 
     def post(self, request):
-        # print(request.META.get("HTTP_AUTHORIZATION"))
         user = request.user
         if user.role == 1:
             serializer = self.serializer_class(user)
@@ -174,7 +176,7 @@ class UserProfileDetail(RetrieveAPIView):
     """
     permission_classes = (IsAuthenticated,)
     serializer_class = UserProfileSerializer
-
+    parser_classes = (MultiPartParser,JSONParser,FormParser,FileUploadParser )
     def get_object(self, request):
         profile = UserProfile.objects.get(user=request.user)
         if profile is None:
@@ -197,11 +199,14 @@ class UserProfileDetail(RetrieveAPIView):
             },
         }
         return Response(response)
-
     def put(self, request):
         user_profile = self.get_object(request)
         serializer = UserProfileSerializer(user_profile, data=request.data)
         if serializer.is_valid(raise_exception=True):
+            date_of_birth = request.data.get("date_of_birth")
+            validate_date_of_birth(date_of_birth)
+            phone_number = request.data.get("phone_number")
+            validate_phone_number(phone_number)
             serializer.save()
             return Response({'status': status.HTTP_200_OK, 'message': 'uppdate user success', 'data': serializer.data})
         return Response({'status': status.HTTP_400_BAD_REQUEST, 'message': serializer.errors})
@@ -227,6 +232,8 @@ class UserChangePasswordView(generics.GenericAPIView):
             return Response(response)
         new_password = request.data.get("new_password")
         confirm_password = request.data.get("confirm_password")
+        validate_password(new_password)
+        validate_password(confirm_password)
         self.object.set_password(confirm_password)
         self.object.save()
         response = {
@@ -277,6 +284,10 @@ class UserPasswordResetView(APIView):
             if not PasswordResetTokenGenerator().check_token(user, token):
                 raise ValidationErr('Token is not Valid or Expired')
             new_password = request.data.get("new_password")
+            try:
+                validate_password(new_password)
+            except InvalidPasswordException:
+                return Response({"status":status.HTTP_400_BAD_REQUEST,"message":"Validate Password Wrong"})
             user.set_password(new_password)
             user.save()
             response = {

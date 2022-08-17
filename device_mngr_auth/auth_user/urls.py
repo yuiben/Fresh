@@ -45,8 +45,8 @@ auth_urls = [
     
     #User Profile
     path("auth/profile",UserProfileDetail.as_view(), name="auth-profile"),
-    path("auth/change-password", UserChangePasswordView.as_view(), name="auth-change-password"),
-    path('auth/send-forgot-password-email',SendPasswordResetEmailView.as_view(),name='send-email'),
-    path('auth/reset-password/<uid>/<token>',UserPasswordResetView.as_view(),name='reset-password'),
+    path("auth/change-password/", UserChangePasswordView.as_view(), name="auth-change-password"),
+    path('auth/send-forgot-password-email/',SendPasswordResetEmailView.as_view(),name='send-email'),
+    path('auth/reset-password/<uid>/<token>/',UserPasswordResetView.as_view(),name='reset-password'),
 
 ]

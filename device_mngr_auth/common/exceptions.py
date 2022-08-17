@@ -1,5 +1,5 @@
 from rest_framework.exceptions import APIException
-
+from rest_framework import status
 
 class BaseException(APIException):
     status_code = 400
@@ -25,5 +25,27 @@ class DuplicateEmailException(BaseException):
         }
     }
 
+class InvalidPasswordException(BaseException):
+    default_detail = {
+        "status":400,
+        "message":{
+            "password": "The password specified is invalid. Please check password"
+        }
+    }
 
 
+class InvalidPhoneNumberException(BaseException):
+    default_detail = {
+        "status":400,
+        "message":{
+            "phone_number":"The phone number is invalid. Please check phone number."
+        }
+    }
+
+class InvalidDateOfBirthException(BaseException):
+    default_detail = {
+        "status":400,
+        "data":{
+            "date_of_birth":"The date of birth is in valid. Please check date of birth"
+        }
+    }

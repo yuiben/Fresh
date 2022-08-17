@@ -103,7 +103,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.code = str(profile_data['position']) + str(user.id)
         user.save()
         return user
-
+    
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile')
         profile = instance.profile
@@ -195,6 +195,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     position = serializers.SlugRelatedField(read_only=True, slug_field='name')
+    date_of_birth = serializers.DateField(format="%d-%m-%Y", input_formats=['%d-%m-%Y', 'iso-8601'])
 
     class Meta:
         model = UserProfile
@@ -232,7 +233,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
       - Send mail
       - Reset password
     """
-    email = serializers.EmailField(max_length=255)
+    email = serializers.EmailField(max_length=255,required=True)
 
     class Meta:
         fields = ['email']

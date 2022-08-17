@@ -45,12 +45,16 @@ class DMAUser(BaseModel, AbstractBaseUser):
         db_table = "users"
         
 
+def upload_to(instance, filename):
+    return 'avatar/{filename}'.format(filename=filename)
 class UserProfile(BaseModel):
+ 
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20)
     date_of_birth = models.DateField()
-    image = models.TextField(default=None, null=True)
+    # image = models.TextField(default=None, null=True)
+    image = models.ImageField(upload_to=upload_to,max_length=255,blank=True)
     position = models.ForeignKey(Position, on_delete=models.CASCADE, related_name='positions')
     user = models.OneToOneField(DMAUser, on_delete=models.CASCADE, related_name='profile')
 
@@ -59,5 +63,6 @@ class UserProfile(BaseModel):
         to set table name in database
         '''
         db_table = "profile"
+
 
 
