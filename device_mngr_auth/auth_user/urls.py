@@ -12,7 +12,7 @@ from device_mngr_auth.auth_user.views import (
     AuthUserAPIView, 
     AuthAdminAPIView,
     ListCreateUserAPIView,
-    ListDetailUserAPIView,
+    UserDetailAPIView,
     SendPasswordResetEmailView,
     UserChangePasswordView,
     UserPasswordResetView,
@@ -25,21 +25,21 @@ auth_urls = [
     
     
     #List user
-    path("list-user/", ListCreateUserAPIView.as_view(),name="list-user"),
+    path("list-user/", ListCreateUserAPIView.as_view(),name="user-list"),
     #List user detail
-    path("list-user/<int:pk>/", ListDetailUserAPIView.as_view(),name="list-user-detail"),
+    path("list-user/<int:pk>/", UserDetailAPIView.as_view(),name="user-detail"),
     #Soft delete
-    path("list-user/soft-delete/", view=soft_delete_user, name="soft delete"),
-    
-    
-    
+    path("delete/", view=soft_delete_user, name="user-soft-delete"),
+
+
+
     #Login
     path("login/", LoginAPIView.as_view(),name="login"),
-    
+
     #check Authen
     path('user/', AuthUserAPIView.as_view(), name="user"),
     path('admin/', AuthAdminAPIView.as_view(), name="admin"),
-    
+
     #refresh token
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
