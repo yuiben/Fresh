@@ -125,9 +125,19 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+                'OPTIONS':{
+                    'user_attributes':(
+                        'name','email','first_name','last_name'
+                    ),
+                    'max_similarity':1
+                }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+                'OPTIONS':{
+                    'min_length':6,
+
+                }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -241,3 +251,6 @@ EMAIL_USE_TLS = bool(os.environ.get('EMAIL_USE_TLS', True))
 EMAIL_PORT = int(os.environ.get('EMAIL_USE_TLS', 587))
 
 PASSWORD_RESET_TIMEOUT=900
+
+MEDIA_URL = os.environ.get('MEDIA_URL')
+MEDIA_ROOT = os.path.join(BASE_DIR,os.environ.get('MEDIA_ROOT'))
