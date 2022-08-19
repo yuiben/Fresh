@@ -59,6 +59,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -129,7 +130,6 @@ AUTH_PASSWORD_VALIDATORS = [
                     'user_attributes':(
                         'name','email','first_name','last_name'
                     ),
-                    'max_similarity':1
                 }
     },
     {
@@ -250,7 +250,6 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASS')
 EMAIL_USE_TLS = bool(os.environ.get('EMAIL_USE_TLS', True))
 EMAIL_PORT = int(os.environ.get('EMAIL_USE_TLS', 587))
 
-PASSWORD_RESET_TIMEOUT=900
-
+PASSWORD_RESET_TIMEOUT=1800
 MEDIA_URL = os.environ.get('MEDIA_URL')
-MEDIA_ROOT = os.path.join(BASE_DIR,os.environ.get('MEDIA_ROOT'))
+MEDIA_ROOT ="media"

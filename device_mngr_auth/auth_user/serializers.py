@@ -1,16 +1,20 @@
+import base64
 import os
-from device_mngr_auth.common.exceptions import UserNotFoundException
+import base64
+import uuid
+from datetime import date
+from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate
+from django.db import transaction
+
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import AuthenticationFailed, NotFound
+
 from .constants import DMAUserRoleType
-
 from .models import DMAUser, Position, UserProfile
-from datetime import date
 from device_mngr_auth.borrow.models import Borrow
-from django.db import transaction
-
+from device_mngr_auth.common.exceptions import InvalidEmailException, UserNotFoundException
 
 ENV_FILE = os.getenv("USE_ENV_FILE", ".env")
 
@@ -82,16 +86,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
         phone_number = data['profile']['phone_number']
         if UserProfile.objects.filter(phone_number=phone_number).first():
             raise serializers.ValidationError(
-                    {"phone_number": "Phone number is Exists"})
+                {"phone_number": "Phone number is Exists"})
         try:
             int(phone_number)
         except:
             raise serializers.ValidationError(
-                {"phone_number": "Phone number must be numeric characters"})    
-            
+                {"phone_number": "Phone number must be numeric characters"})
+
         if phone_number.startswith("0") == False:
-            raise serializers.ValidationError({"phone_number": "Phone number must start with 0"})     
-           
+            raise serializers.ValidationError(
+                {"phone_number": "Phone number must start with 0"})
+
         return data
 
     def create(self, validated_data):
@@ -103,7 +108,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.code = str(profile_data['position']) + str(user.id)
         user.save()
         return user
-    
+
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile')
         profile = instance.profile
@@ -115,15 +120,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
         profile.first_name = profile_data.get('first_name', profile.first_name)
         profile.last_name = profile_data.get('first_name', profile.last_name)
-        profile.phone_number = profile_data.get('phone_number', profile.phone_number)
+        profile.phone_number = profile_data.get(
+            'phone_number', profile.phone_number)
         profile.date_of_birth = profile_data.get(
             'date_of_birth', profile.date_of_birth)
         profile.position = profile_data.get('position', profile.position)
         profile.save()
         return instance
 
-    
-        
 
 class SoftDeleteUserSerializer(serializers.Serializer):
     id = serializers.ListField(
@@ -165,10 +169,16 @@ class LoginSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
+        try:
+            DMAUser.objects.get(email=email)
+        except:
+            raise NotFound(
+                {'code': 404, 'message': 'The Email no exists!!'})
+
         user = authenticate(email=email, password=password)
         if not user:
             raise AuthenticationFailed(
-                {'code': 401, 'message': 'Account Invalid, Try Again'})
+                {'code': 401, 'message': 'Wrong Password'})
 
         if user.deleted_at != None:
             raise NotFound(
@@ -193,9 +203,23 @@ class LoginSerializer(serializers.ModelSerializer):
         }
 
 
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            # base64 encoded image - decode
+            format, imgstr = data.split(';base64,')  # format ~= data:image/X,
+            ext = format.split('/')[-1]  # guess file extension
+            id = uuid.uuid4()
+            data = ContentFile(base64.b64decode(imgstr),
+                               name=id.urn[9:] + '.' + ext)
+        return super(Base64ImageField, self).to_internal_value(data)
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     position = serializers.SlugRelatedField(read_only=True, slug_field='name')
-    date_of_birth = serializers.DateField(format="%d-%m-%Y", input_formats=['%d-%m-%Y', 'iso-8601'])
+    date_of_birth = serializers.DateField(
+        format="%d-%m-%Y", input_formats=['%d-%m-%Y', 'iso-8601'])
+    image = Base64ImageField(max_length=None, use_url=True)
 
     class Meta:
         model = UserProfile
@@ -233,7 +257,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
       - Send mail
       - Reset password
     """
-    email = serializers.EmailField(max_length=255,required=True)
+    email = serializers.EmailField(max_length=255, required=True)
 
     class Meta:
         fields = ['email']
@@ -241,9 +265,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get('email')
         if not DMAUser.objects.filter(email=email).first():
-            raise serializers.ValidationError(
-                "User not found"
-            )
+            raise InvalidEmailException()
         return attrs
 
 
@@ -261,3 +283,4 @@ class UserResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Password and Confirm Password doesn't match")
         return attrs
+

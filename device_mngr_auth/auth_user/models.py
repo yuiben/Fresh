@@ -1,8 +1,9 @@
+from django.db import models
+from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser
-from django.db import models
-from device_mngr_auth.common.models import BaseModel
 
+from device_mngr_auth.common.models import BaseModel
 from device_mngr_auth.auth_user.constants import DMAUserRoleType
 
 class DMAUserManager(BaseUserManager):
@@ -45,16 +46,13 @@ class DMAUser(BaseModel, AbstractBaseUser):
         db_table = "users"
         
 
-def upload_to(instance, filename):
-    return 'avatar/{filename}'.format(filename=filename)
 class UserProfile(BaseModel):
  
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20)
     date_of_birth = models.DateField()
-    # image = models.TextField(default=None, null=True)
-    image = models.ImageField(upload_to=upload_to,max_length=255,blank=True)
+    image = models.ImageField(upload_to=settings.MEDIA_ROOT, blank=True)
     position = models.ForeignKey(Position, on_delete=models.CASCADE, related_name='positions')
     user = models.OneToOneField(DMAUser, on_delete=models.CASCADE, related_name='profile')
 

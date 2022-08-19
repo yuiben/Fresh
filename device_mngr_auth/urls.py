@@ -22,6 +22,9 @@ from device_mngr_auth.auth_user import views
 
 schema_view = get_swagger_view(title='Pastebin API')
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 urlpatterns = [
     path('openapi/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -30,3 +33,4 @@ urlpatterns = [
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     path('api/v1/', include("device_mngr_auth.routers")),
 ]
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
