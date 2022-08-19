@@ -11,14 +11,20 @@ class BaseException(APIException):
 
 class EmailException(BaseException):
     default_detail = {
-        "code": 400,
+        "status": 400,
         "message": "Email already exists"
     }
     
 class UserNotFoundException(BaseException):
     default_detail = {
-        "code": 404,
+        "status": 400,
         "message": "User not exists"
+    }
+    
+class PaginatorsFormatException(BaseException):
+    default_detail = {
+        "status": 400,
+        "message": "Invalid data"
     }
 
 class DuplicateEmailException(BaseException):

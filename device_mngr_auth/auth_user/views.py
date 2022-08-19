@@ -1,5 +1,4 @@
-from datetime import datetime, date
-from xml.dom import ValidationErr
+
 import os
 from drf_spectacular.utils import extend_schema
 
@@ -35,6 +34,7 @@ from device_mngr_auth.auth_user.serializers import (
     UserSerializer,
     SoftDeleteUserSerializer,
     UserCreateSerializer,
+    UserProfileCreateSerializer
 )
 
 FE_URL = os.environ.get('FE_URL')
@@ -64,16 +64,19 @@ def soft_delete_user(request):
     serializer = SoftDeleteUserSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     serializer.delete(serializer.data)
-    return Response({'status': 200, 'message': 'Soft delete success'})
+    return Response({
+        'status': 200, 
+        'message': 'Soft delete success'}, status=status.HTTP_200_OK)
 
 
 class ListCreateUserAPIView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsAdminUser, )
-    serializer_class = UserSerializer
+    serializer_class = UserCreateSerializer
 
     def get(self, request):
         paginator = CustomPagination()
         user = DMAUser.objects.all()
+        
 
         for key, value in self.request.query_params.items():
             if key == 'name':
@@ -84,7 +87,9 @@ class ListCreateUserAPIView(APIView):
                 if value == "1" or value == "0":
                     user = user.filter(deleted_at__isnull=bool(int(value)))
                     continue
-                return Response({'status': 400, 'message': 'Deleted_at param Error'})
+                return Response({
+                    'status': 400, 
+                    'message': 'Deleted_at param Error'}, status=status.HTTP_400_BAD_REQUEST)
 
             if key == 'position':
                 try:
@@ -92,27 +97,29 @@ class ListCreateUserAPIView(APIView):
                     user = user.filter(id__in=profile)
                     continue
                 except ValueError:
-                    return Response({'status': 400, 'message': 'Position param Error'})
+                    return Response({
+                        'status': 400,
+                        'message': 'Position param Error'}, status=status.HTTP_400_BAD_REQUEST)
 
         result_page = paginator.paginate_queryset(user, request)
 
-        pserializer = self.serializer_class(result_page, many=True)
+        pserializer = UserSerializer(result_page, many=True)
 
         return paginator.get_paginated_response(pserializer.data)
 
-    @extend_schema(request=UserCreateSerializer, responses=None, methods=['POST'])
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {'status': 201, 'message': 'succes', 'data': serializer.data},
-            status=status.HTTP_201_CREATED)
-
+        return Response({
+                'status': 201,
+                'message': 'success',
+                'data': serializer.data}, status=status.HTTP_201_CREATED)
+        
 
 class UserDetailAPIView(APIView):
     permission_classes = (permissions.IsAuthenticated, IsAdminUser,)
-    serializer_class = UserSerializer
+    serializer_class = UserCreateSerializer
 
     def get_object(self, pk):
         try:
@@ -123,24 +130,40 @@ class UserDetailAPIView(APIView):
     def get(self, request, pk):
         user = self.get_object(pk)
         serializer = UserSerializer(user)
-        return Response(serializer.data)
+        return Response({
+            'status': 200,
+            'message': 'success',
+            'data': serializer.data}, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
         user = self.get_object(pk)
-        serializer = UserCreateSerializer(user, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'status': 204, 'message': 'Update User Succes'})
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        profile_data = request.data.pop('profile')
+        
+        serializer = self.serializer_class(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        profile = UserProfile.objects.get(pk=pk)
+        serializer_profile = UserProfileCreateSerializer(profile, data=profile_data)
+        serializer_profile.is_valid(raise_exception=True)
+        
+        serializer.save()
+        serializer_profile.save()
+        return Response({
+                        'status': 200,
+                        'message': 'Update User Succes'}, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
         user_borrow = Borrow.objects.filter(user_id=pk, deleted_at=None)
         if len(user_borrow) != 0:
-            raise UserNotFoundException(
-                {'status': 400, 'message': f'Can\'t continue because user borrow id {pk} is borrowing the product'})
+            raise UserNotFoundException({
+                'status': 400,
+                'message': f'Can\'t continue because user borrow id {pk} is borrowing the product'}, 
+                                        status=status.HTTP_400_BAD_REQUEST)
         user = self.get_object(pk)
         user.delete()
-        return Response({'status': 204, 'message': 'Delete User Succes'})
+        return Response({
+            'status': 204,
+            'message': 'Delete User Succes'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -159,7 +182,10 @@ class AuthUserAPIView(generics.GenericAPIView):
     def post(self, request):
         user = request.user
         serializer = self.serializer_class(user)
-        return Response({'status': 200, 'message': 'succes', 'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response({
+            'status': 200,
+            'message': 'success',
+            'data': serializer.data}, status=status.HTTP_200_OK)
 
 
 class AuthAdminAPIView(generics.GenericAPIView):
@@ -169,9 +195,14 @@ class AuthAdminAPIView(generics.GenericAPIView):
         user = request.user
         if user.role == 1:
             serializer = self.serializer_class(user)
-            return Response({'status': 200, 'message': 'succes', 'data': serializer.data}, status=status.HTTP_200_OK)
+            return Response({
+                'status': 200,
+                'message': 'success',
+                'data': serializer.data}, status=status.HTTP_200_OK)
         else:
-            return Response({'status': 401, 'message': 'You do not have permission to use this action !'})
+            return Response({
+                'status': 403,
+                'message': 'You do not have permission to use this action !'}, status=status.HTTP_403_FORBIDDEN)
 
 
 class UserProfileDetail(RetrieveAPIView):
@@ -186,7 +217,9 @@ class UserProfileDetail(RetrieveAPIView):
     def get_object(self, request):
         profile = UserProfile.objects.get(user=request.user)
         if profile is None:
-            return Response({'status': status.HTTP_404_NOT_FOUND, 'message': 'User profile not found'})
+            return Response({
+                'status': 404,
+                'message': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return profile
 
@@ -194,7 +227,7 @@ class UserProfileDetail(RetrieveAPIView):
         user_profile = self.get_object(request)
         serializer = self.serializer_class(user_profile)
         response = {
-            'status': status.HTTP_200_OK,
+            'status': 200,
             'message': 'success',
             'data': {
                 'user_id': request.user.id,
@@ -204,7 +237,7 @@ class UserProfileDetail(RetrieveAPIView):
                 'profile': serializer.data
             },
         }
-        return Response(response)
+        return Response(response, status=status.HTTP_200_OK)
 
     def put(self, request):
         user_profile = self.get_object(request)
@@ -216,7 +249,7 @@ class UserProfileDetail(RetrieveAPIView):
             validate_phone_number(phone_number)
             serializer.save()
             response = {
-                'status': status.HTTP_200_OK,
+                'status': 200,
                 'message': 'Update profile success',
                 'data': {
                     'user_id': request.user.id,
@@ -226,8 +259,10 @@ class UserProfileDetail(RetrieveAPIView):
                     'profile': serializer.data
                 },
             }
-            return Response(response)
-        return Response({'status': status.HTTP_400_BAD_REQUEST, 'message': serializer.errors})
+            return Response(response, status=status.HTTP_200_OK)
+        return Response({
+            'status': 400, 
+            'message': serializer.errors}, status.HTTP_400_BAD_REQUEST)
 
 
 class UserChangePasswordView(generics.GenericAPIView):
@@ -245,10 +280,10 @@ class UserChangePasswordView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         if not self.object.check_password(serializer.data.get("old_password")):
             response = {
-                "status": status.HTTP_400_BAD_REQUEST,
+                "status": 400,
                 "message": "Wrong password",
             }
-            return Response(response)
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
         new_password = request.data.get("new_password")
         confirm_password = request.data.get("confirm_password")
         validate_password(new_password)
@@ -256,13 +291,13 @@ class UserChangePasswordView(generics.GenericAPIView):
         self.object.set_password(confirm_password)
         self.object.save()
         response = {
-            'status': status.HTTP_200_OK,
+            'status': 200,
             'message': 'Change password successfully',
             'data': {
                 'user_id': self.request.user.id
             }
         }
-        return Response(response)
+        return Response(response, status=status.HTTP_200_OK)
 
 
 class SendPasswordResetEmailView(APIView):
@@ -277,8 +312,7 @@ class SendPasswordResetEmailView(APIView):
         if serializer.is_valid(raise_exception=True):
             user = DMAUser.objects.get(email=request.data.get('email'))
             if user.deleted_at != None:
-                raise NotFound(
-                    {'status': 404, 'message': 'The account no longer exists!!'})
+                raise NotFound('The account no longer exists!!')
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = PasswordResetTokenGenerator().make_token(user)
             url_reset_password = f'{FE_URL}/new-password?uid=' + \
@@ -287,10 +321,10 @@ class SendPasswordResetEmailView(APIView):
             send_email_to_user(to_email=user.email, user_data=dict(
                 user=user, code=token, url_reset_password=f'{url_reset_password}'))
             response = {
-                'status': status.HTTP_200_OK,
+                'status': 200,
                 'message': 'Email sent. Please check your email',
             }
-            return Response(response)
+            return Response(response, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -308,12 +342,12 @@ class UserPasswordResetView(APIView):
             try:
                 validate_password(new_password)
             except InvalidPasswordException:
-                return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "Validate Password Wrong"})
+                return Response({"status": 400, "message": "Validate Password Wrong"}, status=status.HTTP_400_BAD_REQUEST)
             user.set_password(new_password)
             user.save()
             response = {
-                'status': status.HTTP_200_OK,
+                'status': 200,
                 'message': 'Password reset successfully',
             }
-            return Response(response)
+            return Response(response, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
