@@ -51,7 +51,7 @@ class TestView(TestSetUp):
     def test_create_user(self):
         client = self.check_token_headers()
         res = client.post(self.list_create_user, self.create_user_data, format='json')
-        print(res.data['code'])
+        # print(res.data['code'])
         self.assertEqual(res.data['code'], 201)
         
     

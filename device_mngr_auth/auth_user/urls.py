@@ -17,9 +17,8 @@ from device_mngr_auth.auth_user.views import (
     )
 
 auth_urls = [
-    
     path("list-user/", ListCreateUserAPIView.as_view(),name="user-list"),
-    path("list-user/<int:pk>/", UserDetailAPIView.as_view(),name="user-detail"),
+    path("detail-user/<int:pk>/", UserDetailAPIView.as_view(),name="user-detail"),
     path("delete/", view=soft_delete_user, name="user-soft-delete"),
     path("login/", LoginAPIView.as_view(),name="login"),
     path('user/', AuthUserAPIView.as_view(), name="user"),

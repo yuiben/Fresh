@@ -43,7 +43,7 @@ class DeviceItemStatuses(int, Enum):
 
 class DeviceItem(BaseModel, models.Model):
     serial_number = models.CharField(max_length=100, unique=True)
-    device_item_status_id = models.IntegerField(
+    status_id = models.IntegerField(
         default=DeviceItemStatuses.AVAILABLE.value)
     device = models.ForeignKey(
         Device, on_delete=models.CASCADE, related_name='device_item')
@@ -66,3 +66,25 @@ class Borrow(BaseModel, models.Model):
         db_table = 'borrows'
         constraints = [models.UniqueConstraint(fields=['device_item'], condition=Q(
             return_date__isnull=True), name='unique_device_item')]
+
+
+class ReportType(BaseModel, models.Model):
+    name = models.CharField(max_length=255, unique=True, null=False)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = 'report_types'
+
+
+class Report(BaseModel, models.Model):
+    description = models.TextField()
+    is_checked = models.BooleanField(default=False)
+    report_type = models.ForeignKey(
+        ReportType, on_delete=models.CASCADE, related_name='report')
+    borrow = models.ForeignKey(
+        Borrow, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'reports'

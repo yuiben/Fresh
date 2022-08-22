@@ -45,14 +45,16 @@ class DMAUser(BaseModel, AbstractBaseUser):
     class Meta:
         db_table = "users"
         
+def upload_to(instance, filename):
+    return 'avatar/{filename}'.format(filename=filename)
 
 class UserProfile(BaseModel):
  
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20, unique=True)
     date_of_birth = models.DateField()
-    image = models.ImageField(upload_to=settings.MEDIA_ROOT, blank=True)
+    image = models.ImageField(upload_to=upload_to,default=None, null=True)
     position = models.ForeignKey(Position, on_delete=models.CASCADE, related_name='positions')
     user = models.OneToOneField(DMAUser, on_delete=models.CASCADE, related_name='profile')
 

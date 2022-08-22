@@ -21,7 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent
 ENV_FILE = os.getenv("USE_ENV_FILE", ".env")
 
 if ENV_FILE and len(ENV_FILE) > 0:
-    load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ENV_FILE), verbose=True)
+    load_dotenv(os.path.join(os.path.dirname(
+        BASE_DIR), ENV_FILE), verbose=True)
 else:
     load_dotenv(verbose=True)
 
@@ -54,6 +55,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     'drf_spectacular',
     'device_mngr_auth.auth_user',
+    'device_mngr_auth.dashboard',
     'device_mngr_auth.common',
     'device_mngr_auth.borrow',
 ]
@@ -70,6 +72,7 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": 'device_mngr_auth.common.custom_exception_handler.custom_exception_handler',
     "DEFAULT_AUTHENTICATION_CLASSES": ["device_mngr_auth.common.auth.JWTAuth"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
@@ -83,7 +86,7 @@ ROOT_URLCONF = 'device_mngr_auth.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [ os.path.join(BASE_DIR, 'templates'),  ],
+        'DIRS': [os.path.join(BASE_DIR, 'templates'), ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
