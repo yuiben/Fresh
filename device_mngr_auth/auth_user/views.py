@@ -164,8 +164,8 @@ class UserDetailAPIView(APIView):
         return Response({
             'status': 204,
             'message': 'Delete User Succes'}, status=status.HTTP_204_NO_CONTENT)
-
-
+        
+        
 class LoginAPIView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = LoginSerializer
