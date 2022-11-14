@@ -1,3 +1,5 @@
+
+
 import os
 import base64
 import uuid
@@ -36,7 +38,7 @@ class AuthLoginSerializer(serializers.Serializer):
 class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
-        fields = ['id', 'name']
+        fields = ['id', 'name',]
 
 
 class UserProfileCreateSerializer(serializers.ModelSerializer):
@@ -44,10 +46,11 @@ class UserProfileCreateSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(format="%d-%m-%Y", input_formats=['%d-%m-%Y'])
     image = serializers.ImageField(read_only=True)
     
+     
     class Meta:
         model = UserProfile
         fields = ['id', 'first_name', 'last_name', 'image',
-                  'phone_number', 'date_of_birth', 'position']
+                  'phone_number', 'date_of_birth', 'position', 'full_name']
     
     def validate_phone_number(self, value):
         try:
@@ -69,11 +72,20 @@ class UserProfileViewSerializer(UserProfileCreateSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileViewSerializer()
-
+    full_name = serializers.CharField(source='profile.full_name')
+    image = serializers.CharField(source='profile.image')
+    phone_number = serializers.CharField(source='profile.phone_number')
+    date_of_birth = serializers.DateField(source='profile.date_of_birth')
+    position = serializers.CharField(source='profile.position.name')
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = DMAUser
-        exclude = ['password']
+        fields = ('id', 'full_name', 'name', 'email', 'role', 'code', 'image', 'phone_number', 'date_of_birth', 'position')
+        
+    def get_role(self, obj):
+        role = obj.role_value_with_id()
+        return role
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -95,10 +107,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['deleted_at', 'code']
         
     def create(self, validated_data):
-        password = {'password': os.getenv("USER_DEFAULT_PASSWORD")}
-        validated_data.update(password)
+        # password = {'password': os.getenv("USER_DEFAULT_PASSWORD")}
+        # validated_data.update(password)
         profile_data = validated_data.pop('profile')
+        print(validated_data)
         user = DMAUser.objects.create(**validated_data)
+        print(profile_data)
         UserProfile.objects.create(user=user, **profile_data)
         user.code = str(profile_data['position']) + str(user.id)
         user.save()
@@ -133,10 +147,27 @@ class SoftDeleteUserSerializer(serializers.Serializer):
                         'status': 400, 
                         'message': f'Can\'t continue because user id {value} can\'t be found'})
         return user
-
-
-
-
+    
+    def update(self, validated_data):
+        user = DMAUser.objects.filter(id__in=validated_data['id'], deleted_at__isnull=False)
+        if len(user) == len(validated_data['id']):
+            for value in user:
+                print(value)
+                value.deleted_at = None
+                value.save()
+                
+                value.profile.deleted_at = None
+                value.profile.save()
+            return user
+        result = DMAUser.objects.filter(id__in=validated_data['id'], deleted_at__isnull=True).first()
+        if not result :
+            raise UserNotFoundException({ 
+                            'status':400,'message':'The elements in the id list must exist'})
+        raise UserNotFoundException({
+                        'status': 400,
+                        'message': f'Can\'t continue because user id {result.id} is activate'})
+            
+            
 class UserProfileSerializer(serializers.ModelSerializer):
     position = serializers.SlugRelatedField(read_only=True, slug_field='name')
     date_of_birth = serializers.DateField(

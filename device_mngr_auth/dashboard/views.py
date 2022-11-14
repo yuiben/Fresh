@@ -33,8 +33,8 @@ class DashboardAPIView(APIView):
     def chart_report(self):
         data = []
         month = Report.objects.values(
-            month=F('created_at__month'),
-            type_report=F('report_type__name')
+            month=('created_at__month'),
+            type_report=('report_type__name')
         ).annotate(total=Count('report_type_id')).order_by('created_at__month')
         
         for i in range(1, 13):

@@ -39,7 +39,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
+    "https://1569-2405-4802-7006-2c40-cd42-bc3c-1ee6-9764.ap.ngrok.io",
     *(filter(lambda x: len(x) > 0, os.getenv("CORS_ALLOWED_ORIGINS", "").split(","))),
 ]
 
@@ -51,14 +51,20 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    'django.contrib.sites',
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     'drf_spectacular',
+    'django.contrib.sessions',
+    'social_django',
     'device_mngr_auth.auth_user',
+    'device_mngr_auth.auth_line',
     'device_mngr_auth.dashboard',
     'device_mngr_auth.common',
     'device_mngr_auth.borrow',
+    'device_mngr_auth.core.models',
 ]
+SITE_ID = 1
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -69,7 +75,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = (
+    'device_mngr_auth.auth_line.line_oauth.LineAuthentication',
+    'django.contrib.auth.backends.ModelBackend',
+)
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": 'device_mngr_auth.common.custom_exception_handler.custom_exception_handler',
@@ -77,8 +89,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
-    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser"],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 ROOT_URLCONF = 'device_mngr_auth.urls'
@@ -121,6 +140,12 @@ DATABASES = {
         "ATOMIC_REQUESTS": True,
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 # Password validation
@@ -253,6 +278,9 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASS')
 EMAIL_USE_TLS = bool(os.environ.get('EMAIL_USE_TLS', True))
 EMAIL_PORT = int(os.environ.get('EMAIL_USE_TLS', 587))
 
-PASSWORD_RESET_TIMEOUT=1800
+SOCIAL_AUTH_LINE_KEY = os.environ.get('SOCIAL_AUTH_LINE_KEY')
+SOCIAL_AUTH_LINE_SECRET = os.environ.get('SOCIAL_AUTH_LINE_SECRET')
+
+PASSWORD_RESET_TIMEOUT = 1800
 MEDIA_URL = os.environ.get('MEDIA_URL')
-MEDIA_ROOT ="media"
+MEDIA_ROOT = "media"
