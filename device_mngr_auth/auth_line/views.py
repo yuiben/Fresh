@@ -4,7 +4,7 @@ from linebot.exceptions import LineBotApiError
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 
-from device_mngr_auth.auth_line.serializers import AuthLoginSerializer
+from device_mngr_auth.auth_line.serializers import AuthLoginSerializer, UserUpdateLineSerializer
 from device_mngr_auth.auth_line.services import LineServices
 from device_mngr_auth.auth_user.views import line_bot_api
 
@@ -37,6 +37,7 @@ def add_tracking_line(request):
 
 
 @extend_schema(
+    tags=['line'],
     responses={200: {}},
     methods=['GET'],
     parameters=[OpenApiParameter(name='ad_code', required=True, type=str)])
@@ -51,6 +52,7 @@ def get_token(request):
 
 
 @extend_schema(
+    tags=['line'],
     responses={200: {}},
     methods=['GET'],
     parameters=[OpenApiParameter(name='redirect_url', required=True, type=str)]
@@ -66,6 +68,7 @@ def line_login(request):
 
 
 @extend_schema(
+    tags=['line'],
     request=AuthLoginSerializer,
     responses={200: {}},
     methods=['POST'],
@@ -81,6 +84,7 @@ def line_verify_get_info_user(request):
 
 
 @extend_schema(
+    tags=['line'],
     responses={200: {}},
     methods=['GET'],
 )
@@ -90,3 +94,19 @@ def line_verify_get_info_user(request):
 @csrf_exempt
 def callback_view(request):
     return Response({'data': request.GET})
+
+
+@extend_schema(
+    tags=['line'],
+    request=UserUpdateLineSerializer,
+    responses={200: {}},
+    methods=['GET'],
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
+@csrf_exempt
+def update_line_to_user(request):
+    line_services = LineServices()
+    data = line_services.update_line_to_user(request.data)
+    return Response({'data': data})

@@ -4,6 +4,7 @@ import random
 import string
 
 from device_mngr_auth.auth_line.line_oauth import LineAuthentication
+from device_mngr_auth.core.models import DMAUser
 
 
 class LineServices:
@@ -70,5 +71,24 @@ class LineServices:
             return response
         except Exception as e:
             return None
+
+    @classmethod
+    def update_line_to_user(cls, request):
+        user_id = request.get('user_id')
+        line_id = request.get('line_id')
+        data = cls.save_line_id_to_user(line_id=line_id, user_id=user_id)
+        return data
+
+    @classmethod
+    def save_line_id_to_user(cls, line_id, user_id):
+        data_user = DMAUser.objects.get(id=user_id)
+
+        if not data_user.line_id:
+            data_user.line_id = line_id
+            data_user.save()
+            return line_id
+        return None
+
+
 
 

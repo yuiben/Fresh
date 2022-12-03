@@ -16,6 +16,7 @@ class LineAuthentication(LineOAuth2):
     STATE_PARAMETER = True
     DEFAULT_SCOPE = ['profile', 'openid', 'chat_message.write']
 
+
     def auth_params(self, state=None):
         client_id, client_secret = self.get_key_and_secret()
         return {
@@ -23,7 +24,8 @@ class LineAuthentication(LineOAuth2):
             'client_id': client_id,
             'redirect_uri': self.get_redirect_uri(),
             'state': self.get_or_create_state(),
-            'scope': self.get_scope()
+            'scope': self.get_scope(),
+            'bot_prompt': 'aggressive'
         }
 
     def auth_complete(self, *args, **kwargs):

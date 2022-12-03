@@ -34,12 +34,12 @@ from device_mngr_auth.auth_user.serializers import (
     UserCreateSerializer,
     UserProfileCreateSerializer,
 )
-from device_mngr_auth.borrow.models import Borrow
 from device_mngr_auth.common.exceptions import CheckTokenException, InvalidPasswordException, UserNotFoundException
 from device_mngr_auth.common.paginators import CustomPagination
 from device_mngr_auth.common.sendmail import send_email_to_user
 from device_mngr_auth.common.validate import validate_date_of_birth, validate_password, validate_phone_number
 from .permissions import IsAdminUser
+from ..core.models.borrow import Borrow
 from ..core.models.users import UserProfile, DMAUser
 
 FE_URL = os.environ.get('FE_URL')

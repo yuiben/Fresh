@@ -57,12 +57,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'django.contrib.sessions',
     'social_django',
-    'device_mngr_auth.auth_user',
-    'device_mngr_auth.auth_line',
-    'device_mngr_auth.dashboard',
-    'device_mngr_auth.common',
-    'device_mngr_auth.borrow',
-    'device_mngr_auth.core.models',
+    'device_mngr_auth.core',
 ]
 SITE_ID = 1
 
@@ -228,7 +223,7 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
 ]
 
-AUTH_USER_MODEL = "auth_user.DMAUser"
+AUTH_USER_MODEL = "core.DMAUser"
 
 
 LOGGING = {

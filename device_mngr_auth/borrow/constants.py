@@ -1,6 +1,7 @@
 from enum import Enum
-from .models import Borrow, Device, Report
-from device_mngr_auth.auth_user.models import DMAUser
+from ..core.models import DMAUser, Report
+from ..core.models.borrow import Borrow
+from ..core.models.device import Device
 
 
 class ModelItems(Enum):

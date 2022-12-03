@@ -6,3 +6,8 @@ class AuthLoginSerializer(serializers.Serializer):
     state = serializers.CharField()
     redirect_url = serializers.CharField()
 
+
+class UserUpdateLineSerializer(serializers.Serializer):
+    line_id = serializers.CharField()
+    user_id = serializers.CharField()
+

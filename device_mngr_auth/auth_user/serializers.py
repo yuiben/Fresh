@@ -1,22 +1,16 @@
-
-
 import os
-import base64
-import uuid
 from datetime import datetime
-from django.core.files.base import ContentFile
+
 from django.contrib.auth import authenticate
 from django.db import transaction
-
 from rest_framework import serializers
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import AuthenticationFailed, NotFound, ValidationError
+from rest_framework.validators import UniqueValidator
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .constants import DMAUserRoleType
-from .models import DMAUser, Position, UserProfile
-from device_mngr_auth.borrow.models import Borrow
 from device_mngr_auth.common.exceptions import InvalidEmailException, UserNotFoundException
-from rest_framework.validators import UniqueValidator, UniqueTogetherValidator
+from .constants import DMAUserRoleType
+from ..core.models import UserProfile, Position, DMAUser, Borrow
 
 ENV_FILE = os.getenv("USE_ENV_FILE", ".env")
 
@@ -38,20 +32,19 @@ class AuthLoginSerializer(serializers.Serializer):
 class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
-        fields = ['id', 'name',]
+        fields = ['id', 'name']
 
 
 class UserProfileCreateSerializer(serializers.ModelSerializer):
     position = serializers.PrimaryKeyRelatedField(queryset=Position.objects.all())
     date_of_birth = serializers.DateField(format="%d-%m-%Y", input_formats=['%d-%m-%Y'])
     image = serializers.ImageField(read_only=True)
-    
-     
+
     class Meta:
         model = UserProfile
         fields = ['id', 'first_name', 'last_name', 'image',
                   'phone_number', 'date_of_birth', 'position', 'full_name']
-    
+
     def validate_phone_number(self, value):
         try:
             int(value)
@@ -60,12 +53,12 @@ class UserProfileCreateSerializer(serializers.ModelSerializer):
             raise ValidationError()
         except:
             raise ValidationError("Phone number must be numberic and start with 0")
-    
+
 
 class UserProfileViewSerializer(UserProfileCreateSerializer):
     position = serializers.SlugRelatedField(
         queryset=Position.objects.all(), slug_field='name')
-    
+
     class Meta:
         model = UserProfileCreateSerializer.Meta.model
         fields = UserProfileCreateSerializer.Meta.fields
@@ -78,11 +71,12 @@ class UserSerializer(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(source='profile.date_of_birth')
     position = serializers.CharField(source='profile.position.name')
     role = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = DMAUser
-        fields = ('id', 'full_name', 'name', 'email', 'role', 'code', 'image', 'phone_number', 'date_of_birth', 'position')
-        
+        fields = (
+            'id', 'full_name', 'name', 'email', 'role', 'code', 'image', 'phone_number', 'date_of_birth', 'position')
+
     def get_role(self, obj):
         role = obj.role_value_with_id()
         return role
@@ -90,34 +84,37 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(min_length=3, max_length=255,
-        validators=[
-            UniqueValidator(
-                queryset=DMAUser.objects.all(),
-                message="Email already exists.!!"
-            )]
-        )
+                                   validators=[
+                                       UniqueValidator(
+                                           queryset=DMAUser.objects.all(),
+                                           message="Email already exists.!!"
+                                       )]
+                                   )
+    line_id = serializers.CharField(max_length=255,
+                                    validators=[
+                                        UniqueValidator(
+                                            queryset=DMAUser.objects.all(),
+                                            message="Line_id already exists.!!"
+                                        )]
+                                    )
     role = serializers.ChoiceField(
         choices=[DMAUserRoleType.USER.value, DMAUserRoleType.ADMIN.value],
         default=DMAUserRoleType.USER.value)
     profile = UserProfileCreateSerializer()
-    
+
     class Meta:
         model = DMAUser
-        exclude =  ['password']
+        exclude = ['password']
         read_only_fields = ['deleted_at', 'code']
-        
+
     def create(self, validated_data):
-        # password = {'password': os.getenv("USER_DEFAULT_PASSWORD")}
-        # validated_data.update(password)
         profile_data = validated_data.pop('profile')
-        print(validated_data)
         user = DMAUser.objects.create(**validated_data)
-        print(profile_data)
         UserProfile.objects.create(user=user, **profile_data)
         user.code = str(profile_data['position']) + str(user.id)
         user.save()
         return user
-    
+
 
 class SoftDeleteUserSerializer(serializers.Serializer):
     id = serializers.ListField(
@@ -131,7 +128,7 @@ class SoftDeleteUserSerializer(serializers.Serializer):
                     user_id=value, deleted_at=None)
                 if len(user_borrow) != 0:
                     raise UserNotFoundException({
-                        'status': 400, 
+                        'status': 400,
                         'message': f'Can\'t continue because user borrow id {value} is borrowing the product'})
                 try:
                     user = DMAUser.objects.get(pk=value, deleted_at=None)
@@ -144,10 +141,10 @@ class SoftDeleteUserSerializer(serializers.Serializer):
                     profile.save()
                 except DMAUser.DoesNotExist:
                     raise UserNotFoundException({
-                        'status': 400, 
+                        'status': 400,
                         'message': f'Can\'t continue because user id {value} can\'t be found'})
         return user
-    
+
     def update(self, validated_data):
         user = DMAUser.objects.filter(id__in=validated_data['id'], deleted_at__isnull=False)
         if len(user) == len(validated_data['id']):
@@ -155,19 +152,19 @@ class SoftDeleteUserSerializer(serializers.Serializer):
                 print(value)
                 value.deleted_at = None
                 value.save()
-                
+
                 value.profile.deleted_at = None
                 value.profile.save()
             return user
         result = DMAUser.objects.filter(id__in=validated_data['id'], deleted_at__isnull=True).first()
-        if not result :
-            raise UserNotFoundException({ 
-                            'status':400,'message':'The elements in the id list must exist'})
+        if not result:
+            raise UserNotFoundException({
+                'status': 400, 'message': 'The elements in the id list must exist'})
         raise UserNotFoundException({
-                        'status': 400,
-                        'message': f'Can\'t continue because user id {result.id} is activate'})
-            
-            
+            'status': 400,
+            'message': f'Can\'t continue because user id {result.id} is activate'})
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     position = serializers.SlugRelatedField(read_only=True, slug_field='name')
     date_of_birth = serializers.DateField(
@@ -193,14 +190,14 @@ class LoginSerializer(serializers.ModelSerializer):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
         try:
-            user = DMAUser.objects.get(email=email, deleted_at = None)
+            user = DMAUser.objects.get(email=email, deleted_at=None)
             user = authenticate(email=email, password=password)
             if not user:
                 raise AuthenticationFailed({
                     'status': 401, 'message': 'Wrong Password'})
         except DMAUser.DoesNotExist:
-                    raise NotFound('Email does not exist!!')
-                    
+            raise NotFound('Email does not exist!!')
+
         serializer = UserProfileSerializer(user.profile)
         refresh = RefreshToken.for_user(user)
         token = refresh.access_token
@@ -218,6 +215,7 @@ class LoginSerializer(serializers.ModelSerializer):
                 'access_token': str(token),
             }
         }
+
 
 class UserChangePasswordSerializer(serializers.Serializer):
     """
@@ -275,4 +273,3 @@ class UserResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Password and Confirm Password doesn't match")
         return attrs
-

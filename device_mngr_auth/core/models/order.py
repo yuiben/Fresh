@@ -1,8 +1,8 @@
 from django.db import models
 
-from device_mngr_auth.auth_user.models import DMAUser
 from device_mngr_auth.common.constants.db_table import DBEnumFields
 from device_mngr_auth.common.models import BaseModel
+from device_mngr_auth.core.models import DMAUser
 
 
 class Order(BaseModel):

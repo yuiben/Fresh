@@ -10,7 +10,8 @@ from rest_framework import permissions
 
 from device_mngr_auth.auth_user.permissions import IsAdminUser
 from device_mngr_auth.borrow.constants import ModelItems, Month
-from device_mngr_auth.borrow.models import Report, DeviceItemStatuses, DeviceItem 
+from device_mngr_auth.core.models import Report
+from device_mngr_auth.core.models.device_item import DeviceItemStatuses, DeviceItem
 
 
 # Create your views here.

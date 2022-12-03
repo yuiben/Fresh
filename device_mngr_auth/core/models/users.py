@@ -6,6 +6,7 @@ from django.db import models
 
 from device_mngr_auth.auth_user.constants import DMAUserRoleType
 from device_mngr_auth.common.models import BaseModel
+from device_mngr_auth.core.models import Position
 
 
 class DMAUserManager(BaseUserManager):
